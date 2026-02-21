@@ -69,9 +69,10 @@ class AutoCalibrateConfigFlow(ConfigFlow, domain=DOMAIN):
                 else:
                     source_state = self.hass.states.get(source_entity)
                     if source_state and source_state.attributes.get("friendly_name"):
-                        name = source_state.attributes["friendly_name"]
+                        original_name = source_state.attributes["friendly_name"]
                     else:
-                        name = source_id.replace("_", " ").title()
+                        original_name = source_id.replace("_", " ").title()
+                    name = f"{original_name} (calibrated)"
                     title = name
 
                 return self.async_create_entry(
