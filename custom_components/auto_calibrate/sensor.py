@@ -44,6 +44,9 @@ async def async_setup_entry(
         "entity_id_suffix",
         f"{source_entity.split('.', 1)[-1]}_calibrated",
     )
+    source_device_class: str | None = entry.data.get("source_device_class")
+    source_unit: str | None = entry.data.get("source_unit")
+    source_display_precision: int | None = entry.data.get("source_display_precision")
 
     device_info: DeviceInfo | None = None
 
@@ -74,6 +77,9 @@ async def async_setup_entry(
         name=name,
         entity_id_suffix=entity_id_suffix,
         device_info=device_info,
+        source_device_class=source_device_class,
+        source_unit=source_unit,
+        source_display_precision=source_display_precision,
     )
     async_add_entities([sensor], True)
     hass.data[DOMAIN][entry.entry_id]["sensor"] = sensor
@@ -82,10 +88,9 @@ async def async_setup_entry(
 class AutoCalibrateSensor(RestoreSensor):
     """A self-learning sensor that normalizes a raw source to 0-100%."""
 
-    _attr_native_unit_of_measurement = PERCENTAGE
-    _attr_device_class = SensorDeviceClass.MOISTURE
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_should_poll = False
+    _attr_has_entity_name = False
 
     def __init__(
         self,
@@ -94,6 +99,9 @@ class AutoCalibrateSensor(RestoreSensor):
         name: str,
         entity_id_suffix: str,
         device_info: DeviceInfo | None = None,
+        source_device_class: str | None = None,
+        source_unit: str | None = None,
+        source_display_precision: int | None = None,
     ) -> None:
         """Initialize the sensor."""
         self._entry_id = entry_id
@@ -102,6 +110,18 @@ class AutoCalibrateSensor(RestoreSensor):
         self._attr_unique_id = f"auto_calibrate_{source_entity}"
         self.entity_id = f"sensor.{entity_id_suffix}"
         self._attr_device_info = device_info
+
+        if source_device_class:
+            try:
+                self._attr_device_class = SensorDeviceClass(source_device_class)
+            except ValueError:
+                self._attr_device_class = None
+        if source_unit:
+            self._attr_native_unit_of_measurement = source_unit
+        else:
+            self._attr_native_unit_of_measurement = PERCENTAGE
+        if source_display_precision is not None:
+            self._attr_suggested_display_precision = source_display_precision
 
         self._min_raw: float | None = None
         self._max_raw: float | None = None

@@ -63,15 +63,33 @@ class AutoCalibrateConfigFlow(ConfigFlow, domain=DOMAIN):
                                 list(c) for c in source_device.connections
                             ]
 
+                source_state = self.hass.states.get(source_entity)
+                if source_state and source_state.attributes.get("friendly_name"):
+                    original_name = source_state.attributes["friendly_name"]
+                else:
+                    original_name = source_id.replace("_", " ").title()
+
+                source_device_class: str | None = None
+                source_unit: str | None = None
+                source_display_precision: int | None = None
+                if source_entry is not None:
+                    if source_entry.device_class:
+                        source_device_class = source_entry.device_class
+                    if source_entry.unit_of_measurement:
+                        source_unit = source_entry.unit_of_measurement
+                    if source_entry.options:
+                        sensor_opts = source_entry.options.get("sensor", {})
+                        if "display_precision" in sensor_opts:
+                            source_display_precision = sensor_opts["display_precision"]
+                if source_device_class is None and source_state:
+                    source_device_class = source_state.attributes.get("device_class")
+                if source_unit is None and source_state:
+                    source_unit = source_state.attributes.get("unit_of_measurement")
+
                 if custom_name:
                     name = custom_name
                     title = custom_name
                 else:
-                    source_state = self.hass.states.get(source_entity)
-                    if source_state and source_state.attributes.get("friendly_name"):
-                        original_name = source_state.attributes["friendly_name"]
-                    else:
-                        original_name = source_id.replace("_", " ").title()
                     name = f"{original_name} (calibrated)"
                     title = name
 
@@ -84,6 +102,9 @@ class AutoCalibrateConfigFlow(ConfigFlow, domain=DOMAIN):
                         "source_device_identifiers": source_device_identifiers,
                         "source_device_connections": source_device_connections,
                         "entity_id_suffix": entity_id_suffix,
+                        "source_device_class": source_device_class,
+                        "source_unit": source_unit,
+                        "source_display_precision": source_display_precision,
                     },
                 )
 
