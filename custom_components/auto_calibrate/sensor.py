@@ -36,11 +36,13 @@ async def async_setup_entry(
     """Set up Auto-Calibrate sensor from a config entry."""
     source_entity: str = entry.data[CONF_SOURCE_ENTITY]
     name: str = entry.data[CONF_NAME]
+    entity_id_suffix: str = entry.data.get("entity_id_suffix", f"{source_entity.split('.', 1)[-1]}_calibrated")
 
     sensor = AutoCalibrateSensor(
         entry_id=entry.entry_id,
         source_entity=source_entity,
         name=name,
+        entity_id_suffix=entity_id_suffix,
     )
     async_add_entities([sensor], True)
     hass.data[DOMAIN][entry.entry_id]["sensor"] = sensor
@@ -59,12 +61,14 @@ class AutoCalibrateSensor(RestoreSensor):
         entry_id: str,
         source_entity: str,
         name: str,
+        entity_id_suffix: str,
     ) -> None:
         """Initialize the sensor."""
         self._entry_id = entry_id
         self._source_entity = source_entity
         self._attr_name = name
         self._attr_unique_id = f"auto_calibrate_{source_entity}"
+        self.entity_id = f"sensor.{entity_id_suffix}"
 
         self._min_raw: float | None = None
         self._max_raw: float | None = None
