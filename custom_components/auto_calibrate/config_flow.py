@@ -81,6 +81,8 @@ class AutoCalibrateConfigFlow(ConfigFlow, domain=DOMAIN):
                         sensor_opts = source_entry.options.get("sensor", {})
                         if "display_precision" in sensor_opts:
                             source_display_precision = sensor_opts["display_precision"]
+                        elif "suggested_display_precision" in sensor_opts:
+                            source_display_precision = sensor_opts["suggested_display_precision"]
                 if source_device_class is None and source_state:
                     source_device_class = source_state.attributes.get("device_class")
                 if source_unit is None and source_state:

@@ -13,6 +13,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
@@ -71,6 +72,28 @@ async def async_setup_entry(
         if dev_info_kwargs:
             device_info = DeviceInfo(**dev_info_kwargs)
 
+    expected_entity_id = f"sensor.{entity_id_suffix}"
+    unique_id = f"auto_calibrate_{source_entity}"
+
+    ent_reg = er.async_get(hass)
+    existing_entry = ent_reg.async_get_entity_id("sensor", DOMAIN, unique_id)
+    if existing_entry is not None and existing_entry != expected_entity_id:
+        _LOGGER.info(
+            "Correcting entity_id from %s to %s",
+            existing_entry,
+            expected_entity_id,
+        )
+        try:
+            ent_reg.async_update_entity(
+                existing_entry,
+                new_entity_id=expected_entity_id,
+            )
+        except ValueError:
+            _LOGGER.warning(
+                "Could not update entity_id to %s (may already exist)",
+                expected_entity_id,
+            )
+
     sensor = AutoCalibrateSensor(
         entry_id=entry.entry_id,
         source_entity=source_entity,
@@ -108,6 +131,7 @@ class AutoCalibrateSensor(RestoreSensor):
         self._source_entity = source_entity
         self._attr_name = name
         self._attr_unique_id = f"auto_calibrate_{source_entity}"
+        self._entity_id_suffix = entity_id_suffix
         self.entity_id = f"sensor.{entity_id_suffix}"
         self._attr_device_info = device_info
 
@@ -122,6 +146,8 @@ class AutoCalibrateSensor(RestoreSensor):
             self._attr_native_unit_of_measurement = PERCENTAGE
         if source_display_precision is not None:
             self._attr_suggested_display_precision = source_display_precision
+        else:
+            self._attr_suggested_display_precision = 1
 
         self._min_raw: float | None = None
         self._max_raw: float | None = None
@@ -131,6 +157,27 @@ class AutoCalibrateSensor(RestoreSensor):
     async def async_added_to_hass(self) -> None:
         """Restore state and subscribe to source entity changes."""
         await super().async_added_to_hass()
+
+        expected_entity_id = f"sensor.{self._entity_id_suffix}"
+        if self.entity_id != expected_entity_id:
+            ent_reg = er.async_get(self.hass)
+            reg_entry = ent_reg.async_get(self.entity_id)
+            if reg_entry is not None:
+                try:
+                    ent_reg.async_update_entity(
+                        self.entity_id,
+                        new_entity_id=expected_entity_id,
+                    )
+                    _LOGGER.info(
+                        "Migrated entity_id from %s to %s",
+                        self.entity_id,
+                        expected_entity_id,
+                    )
+                except ValueError:
+                    _LOGGER.warning(
+                        "Could not migrate entity_id to %s",
+                        expected_entity_id,
+                    )
 
         last_sensor_data = await self.async_get_last_sensor_data()
         last_state = await self.async_get_last_state()
