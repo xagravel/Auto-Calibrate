@@ -3,10 +3,10 @@
     "step": {
       "user": {
         "title": "Auto-Calibrate Sensor",
-        "description": "Select a numeric source sensor. The integration will learn its range over time and output a normalized 0-100% value.",
+        "description": "Select a numeric source sensor. The integration will learn its range over time and output a normalized 0-100% value.\n\nIf you provide a name, a new device will be created with that name. If left empty, the calibrated entity will be added to the source sensor's existing device.",
         "data": {
           "source_entity": "Source sensor entity",
-          "name": "Friendly name (optional)"
+          "name": "New device name (optional)"
         }
       }
     },

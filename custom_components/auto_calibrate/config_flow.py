@@ -6,9 +6,11 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
-from homeassistant.helpers import selector
+from homeassistant.helpers import entity_registry as er, device_registry as dr, selector
 
 from .const import CONF_NAME, CONF_SOURCE_ENTITY, DOMAIN
+
+CONF_CUSTOM_NAME = "custom_name"
 
 
 class AutoCalibrateConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -40,22 +42,46 @@ class AutoCalibrateConfigFlow(ConfigFlow, domain=DOMAIN):
 
             if not errors:
                 custom_name = user_input.get(CONF_NAME, "").strip()
-                source_state = self.hass.states.get(source_entity)
+                source_id = source_entity.split(".", 1)[-1]
+                entity_id_suffix = f"{source_id}_calibrated"
+
+                ent_reg = er.async_get(self.hass)
+                source_entry = ent_reg.async_get(source_entity)
+                source_device_identifiers: list[list[str]] = []
+                source_device_connections: list[list[str]] = []
+
+                if source_entry is not None and source_entry.device_id:
+                    dev_reg = dr.async_get(self.hass)
+                    source_device = dev_reg.async_get(source_entry.device_id)
+                    if source_device is not None:
+                        if source_device.identifiers:
+                            source_device_identifiers = [
+                                list(i) for i in source_device.identifiers
+                            ]
+                        if source_device.connections:
+                            source_device_connections = [
+                                list(c) for c in source_device.connections
+                            ]
+
                 if custom_name:
                     name = custom_name
-                    entity_id_suffix = custom_name.lower().replace(" ", "_")
+                    title = custom_name
                 else:
+                    source_state = self.hass.states.get(source_entity)
                     if source_state and source_state.attributes.get("friendly_name"):
                         name = source_state.attributes["friendly_name"]
                     else:
-                        name = source_entity.split(".", 1)[-1].replace("_", " ").title()
-                    source_id = source_entity.split(".", 1)[-1]
-                    entity_id_suffix = f"{source_id}_calibrated"
+                        name = source_id.replace("_", " ").title()
+                    title = name
+
                 return self.async_create_entry(
-                    title=name,
+                    title=title,
                     data={
                         CONF_SOURCE_ENTITY: source_entity,
                         CONF_NAME: name,
+                        CONF_CUSTOM_NAME: custom_name,
+                        "source_device_identifiers": source_device_identifiers,
+                        "source_device_connections": source_device_connections,
                         "entity_id_suffix": entity_id_suffix,
                     },
                 )

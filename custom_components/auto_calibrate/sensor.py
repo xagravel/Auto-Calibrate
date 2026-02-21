@@ -12,6 +12,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
@@ -36,13 +37,43 @@ async def async_setup_entry(
     """Set up Auto-Calibrate sensor from a config entry."""
     source_entity: str = entry.data[CONF_SOURCE_ENTITY]
     name: str = entry.data[CONF_NAME]
-    entity_id_suffix: str = entry.data.get("entity_id_suffix", f"{source_entity.split('.', 1)[-1]}_calibrated")
+    custom_name: str = entry.data.get("custom_name", "")
+    source_device_identifiers: list[list[str]] = entry.data.get("source_device_identifiers", [])
+    source_device_connections: list[list[str]] = entry.data.get("source_device_connections", [])
+    entity_id_suffix: str = entry.data.get(
+        "entity_id_suffix",
+        f"{source_entity.split('.', 1)[-1]}_calibrated",
+    )
+
+    device_info: DeviceInfo | None = None
+
+    if custom_name:
+        device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=custom_name,
+            manufacturer="Auto-Calibrate",
+            model="Virtual Calibrated Sensor",
+            entry_type=DeviceEntryType.SERVICE,
+        )
+    elif source_device_identifiers or source_device_connections:
+        dev_info_kwargs: dict[str, Any] = {}
+        if source_device_identifiers:
+            dev_info_kwargs["identifiers"] = {
+                tuple(i) for i in source_device_identifiers
+            }
+        if source_device_connections:
+            dev_info_kwargs["connections"] = {
+                tuple(c) for c in source_device_connections
+            }
+        if dev_info_kwargs:
+            device_info = DeviceInfo(**dev_info_kwargs)
 
     sensor = AutoCalibrateSensor(
         entry_id=entry.entry_id,
         source_entity=source_entity,
         name=name,
         entity_id_suffix=entity_id_suffix,
+        device_info=device_info,
     )
     async_add_entities([sensor], True)
     hass.data[DOMAIN][entry.entry_id]["sensor"] = sensor
@@ -62,6 +93,7 @@ class AutoCalibrateSensor(RestoreSensor):
         source_entity: str,
         name: str,
         entity_id_suffix: str,
+        device_info: DeviceInfo | None = None,
     ) -> None:
         """Initialize the sensor."""
         self._entry_id = entry_id
@@ -69,6 +101,7 @@ class AutoCalibrateSensor(RestoreSensor):
         self._attr_name = name
         self._attr_unique_id = f"auto_calibrate_{source_entity}"
         self.entity_id = f"sensor.{entity_id_suffix}"
+        self._attr_device_info = device_info
 
         self._min_raw: float | None = None
         self._max_raw: float | None = None
