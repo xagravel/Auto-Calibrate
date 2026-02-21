@@ -39,7 +39,13 @@ class AutoCalibrateConfigFlow(ConfigFlow, domain=DOMAIN):
                         errors["base"] = "not_numeric"
 
             if not errors:
-                name = user_input.get(CONF_NAME, f"Auto-Calibrate {source_entity}")
+                name = user_input.get(CONF_NAME, "").strip()
+                if not name:
+                    source_state = self.hass.states.get(source_entity)
+                    if source_state and source_state.attributes.get("friendly_name"):
+                        name = f"{source_state.attributes['friendly_name']}_calibrated"
+                    else:
+                        name = f"{source_entity}_calibrated"
                 return self.async_create_entry(
                     title=name,
                     data={
