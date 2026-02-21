@@ -1,0 +1,33 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Auto-Calibrate Sensor",
+        "description": "Select a numeric source sensor. The integration will learn its range over time and output a normalized 0-100% value.",
+        "data": {
+          "source_entity": "Source sensor entity",
+          "name": "Friendly name (optional)"
+        }
+      }
+    },
+    "error": {
+      "entity_not_found": "The selected entity was not found.",
+      "not_numeric": "The selected entity does not have a numeric state."
+    },
+    "abort": {
+      "already_configured": "This source entity is already configured."
+    }
+  },
+  "services": {
+    "reset": {
+      "name": "Reset Calibration",
+      "description": "Clears the learned minimum and maximum values so the sensor can recalibrate.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity",
+          "description": "The auto-calibrate sensor entity to reset."
+        }
+      }
+    }
+  }
+}

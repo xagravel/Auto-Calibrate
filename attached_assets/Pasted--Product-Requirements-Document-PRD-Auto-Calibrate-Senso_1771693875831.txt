@@ -1,0 +1,34 @@
+# Product Requirements Document (PRD): Auto-Calibrate Sensor Integration
+
+## 1. Overview and Objectives
+**Product Name:** Auto-Calibrate Sensor (`auto_calibrate`)
+**Platform:** Home Assistant (Custom Integration)
+**Objective:** Build a self-learning, trigger-based custom sensor integration. It will observe an erratic or uncalibrated raw numeric sensor (e.g., a Tuya TS0601 soil moisture probe), dynamically record its all-time historical minimum and maximum values, and output a normalized 0-100% measurement.
+
+## 2. Target User & Use Case
+* **Target Audience:** Home Assistant administrators who need to normalize wildly varying sensor data without manually hardcoding offset limits in YAML.
+* **Primary Use Case:** A user inserts a generic probe into a plant. The integration learns the absolute dry baseline (e.g., 26) and the absolute wet peak (e.g., 94) over time, and mathematically scales the current live reading into a clean 0% to 100% value.
+
+## 3. Core Features & Scope
+| Feature | Description | Priority |
+| :--- | :--- | :--- |
+| **UI Configuration (Config Flow)** | Users can set up the integration entirely via the HA UI (Settings > Devices & Services). No YAML required. | High |
+| **Self-Learning Limits** | The sensor continuously evaluates state changes from the source entity and updates its internal `min_raw` and `max_raw` variables if a new extreme is reached. | High |
+| **State Normalization** | Converts the current raw value into a 0-100 percentage based on the learned limits. | High |
+| **State Persistence** | Survives HA server reboots. The learned min/max attributes must be written to the storage registry using HA's `RestoreSensor` class. | High |
+| **Reset Service** | Exposes a service (`auto_calibrate.reset`) to clear the historical limits so the physical sensor can be moved to a new environment without retaining old data. | Medium |
+
+## 4. Technical Architecture
+The integration must be built in Python using modern Home Assistant async libraries and strict typing. It must strictly follow the standard Home Assistant custom component directory structure.
+
+### 4.1. Directory Structure
+```text
+custom_components/auto_calibrate/
+├── __init__.py
+├── config_flow.py
+├── const.py
+├── manifest.json
+├── sensor.py
+├── services.yaml
+└── translations/
+    └── en.json
